@@ -15,7 +15,7 @@ export function deviceMeta(d, s) {
   if (s.key === 'unavailable') return 'Fitted by a technician when a crack needs measuring';
   if (s.key === 'offline') return 'Last heard from ' + ago(d.lastSeen);
   if (d.kind === 'crack') { const r = lastReading(d); return `${r != null ? r.toFixed(2) : '0.00'} mm moved, limit ${d.limit} mm`; }
-  if (d.kind === 'leak') return `Battery ${d.battery}%` + (d.lastTest ? `, tested ${ago(d.lastTest)}` : '');
+  if (d.kind === 'leak') return (d.power === 'wired' ? 'Mains powered' : `Battery ${d.battery}%`) + (d.lastTest ? `, tested ${ago(d.lastTest)}` : '');
   return 'Connected to home Wi-Fi';
 }
 

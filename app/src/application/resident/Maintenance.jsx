@@ -5,7 +5,7 @@ import { fmtDateTime, fmtVisit, fmtDate } from '../../shared/services/format.js'
 import { href, go } from '../../shared/services/router.js';
 import Icon from '../shared/Icon.jsx';
 import { StatusBadge, Segmented, Empty, Button, Field, Confirm, Dialog, Stepper, useToast } from '../shared/ui.jsx';
-import { AiPhoto, MoveChart } from '../shared/visuals.jsx';
+import { AiPhoto, MoveChart, BaselineCompare } from '../shared/visuals.jsx';
 import CrackCheck from './CrackCheck.jsx';
 import { nextStep } from './Home.jsx';
 import { Page, BASE } from './Page.jsx';
@@ -225,7 +225,7 @@ function RequestDetail({ id }) {
           <dt>Room</dt><dd>{w.room === 'outside' ? 'Outside the house' : roomName(w.room)}</dd>
           <dt>Sent</dt><dd>{fmtDateTime(w.created)}</dd>
           {w.prefTime && <><dt>Preferred time</dt><dd>{w.prefTime}</dd></>}
-          <dt>Your description</dt><dd>{w.description}</dd>
+          <dt>{w.source === 'crack_monitor' ? 'Raised by' : 'Your description'}</dt><dd>{w.source === 'crack_monitor' ? 'Crack monitor at window W3. ' : ''}{w.description}</dd>
           {w.signs.length > 0 && <><dt>Warning signs</dt><dd>{w.signs.join('; ')}</dd></>}
         </dl>
       </section>
@@ -235,6 +235,19 @@ function RequestDetail({ id }) {
           <h2>Photo</h2>
           <AiPhoto src={w.photo} boxes={w.boxes} w={w.photoW} h={w.photoH} />
           {w.ai && <p className="small muted">AI label: {w.ai.label}{w.ai.conf != null ? `, confidence ${w.ai.conf.toFixed(2)}` : ''}{w.ai.source === 'sample' ? ' (sample illustration)' : ''}{w.ai.unsure ? ', low confidence' : ''}</p>}
+        </section>
+      )}
+
+      {w.evidence && (
+        <section className="section">
+          <h2>Handover baseline and the reading that raised this</h2>
+          <BaselineCompare evidence={w.evidence} confirmed={w.findings.some((f) => f.result === 'confirmed')} />
+        </section>
+      )}
+      {w.findings.length > 0 && (
+        <section className="section">
+          <h2>Technician's findings</h2>
+          <ul className="rows panel">{w.findings.map((f, i) => <li key={i} className="row"><span className="row-main"><span className="row-title">{f.area}</span><span className="row-sub">{f.note}</span></span></li>)}</ul>
         </section>
       )}
 

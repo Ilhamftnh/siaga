@@ -5,7 +5,7 @@ import { fmtDateTime, fmtVisit, fmtDate, toLocalInput, duration, ago } from '../
 import { href } from '../../shared/services/router.js';
 import Icon from '../shared/Icon.jsx';
 import { StatusBadge, PriorityBadge, Badge, Button, Field, Dialog, Confirm, Stepper, Empty, useToast, useNow } from '../shared/ui.jsx';
-import { AiPhoto, MoveChart } from '../shared/visuals.jsx';
+import { AiPhoto, MoveChart, BaselineCompare } from '../shared/visuals.jsx';
 import { TPage, TBASE, isOverdue } from './common.jsx';
 
 const FLOW = ['New', 'Assigned', 'Scheduled', 'In progress', 'Completed'];
@@ -64,13 +64,13 @@ export default function WorkOrder({ id }) {
   }
 
   const dev = Object.values(state.devices);
-  const showDevices = isDemoHome && (w.shareReadings || w.source === 'leak_sensor');
+  const showDevices = isDemoHome && (w.shareReadings || w.source === 'leak_sensor' || w.source === 'crack_monitor');
 
   return (
     <TPage back={['work-orders', 'Work orders']}>
       <div className="wo-head">
         <div>
-          <p className="small muted"><span className="wid">{w.id}</span>{catName(w.category)}, {w.source === 'leak_sensor' ? 'from a leak sensor alert' : 'sent by resident'} {ago(w.created, now)}</p>
+          <p className="small muted"><span className="wid">{w.id}</span>{catName(w.category)}, {w.source === 'leak_sensor' ? 'from a leak sensor alert' : w.source === 'crack_monitor' ? 'from a crack monitor anomaly' : 'sent by resident'} {ago(w.created, now)}</p>
           <h1>{w.title}</h1>
         </div>
         <div className="wo-badges"><StatusBadge status={w.status} />{w.status === 'follow_up' && w.followUp && <Badge tone="warn" icon={null}>{FOLLOW.find((f) => f[0] === w.followUp.reason)?.[1]}</Badge>}</div>
@@ -93,7 +93,7 @@ export default function WorkOrder({ id }) {
           {w.status === 'cancelled' && <section className="notice t-off"><Icon name="x" /><div><b>Cancelled by the resident</b>No visit needed.</div></section>}
 
           <section className="section">
-            <h2>Resident's report</h2>
+            <h2>{w.source === 'crack_monitor' ? 'Sensor report' : "Resident's report"}</h2>
             <div className="panel panel-pad report">
               <p>{w.description}</p>
               <dl className="kv small">
@@ -123,12 +123,18 @@ export default function WorkOrder({ id }) {
             </div>
           </section>
 
+          {w.evidence && (
+            <section className="section">
+              <h2>Evidence: handover baseline against current reading</h2>
+              <div className="panel panel-pad"><BaselineCompare evidence={w.evidence} confirmed={w.findings.some((f) => f.result === 'confirmed')} /></div>
+            </section>
+          )}
           {monitorHere && (
             <section className="section">
               <div className="section-head"><h2>Crack monitor at window W3</h2>{crackDev.over && <Badge tone="bad">Above limit</Badge>}</div>
               <div className="panel panel-pad">
                 <MoveChart readings={crackDev.readings} limit={crackDev.limit} />
-                <p className="small muted num">Latest {(lastReading(crackDev) ?? 0).toFixed(2)} mm, {crackDev.readings.length} readings since {fmtDateTime(crackDev.installedAt || crackDev.readings[0]?.at)}. Prototype sensor: slide potentiometer, not a calibrated crackmeter.</p>
+                <p className="small muted num">Latest {(lastReading(crackDev) ?? 0).toFixed(2)} mm, {crackDev.readings.length} readings since {fmtDateTime(crackDev.installedAt || crackDev.readings[0]?.at)}. Prototype sensor: Hall-effect sensor and magnet, not a calibrated crackmeter.</p>
               </div>
             </section>
           )}
@@ -159,7 +165,7 @@ export default function WorkOrder({ id }) {
             <dl className="kv small panel-pad">
               <dt>Address</dt><dd>{homeAddress(w.home)}</dd>
               <dt>Resident</dt><dd>{isDemoHome ? <>{RESIDENT.name}<br /><a href={'tel:' + RESIDENT.phone.replace(/\s|-/g, '')}>{RESIDENT.phone}</a></> : 'Sample resident'}</dd>
-              {isDemoHome && <><dt>Handover</dt><dd>{fmtDate(Date.parse(RESIDENT.handover))}, <a href={href(TBASE + '/inspections/INS-0201')}>inspection record</a></dd></>}
+              {isDemoHome && <><dt>Handover</dt><dd>{state.handover ? <>{fmtDate(state.handover.at)}, <a href={href(TBASE + '/inspections/' + state.handover.inspectionId)}>inspection record</a></> : 'Not handed over yet'}</dd></>}
             </dl>
           </section>
 

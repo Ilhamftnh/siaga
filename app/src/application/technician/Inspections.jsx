@@ -132,7 +132,7 @@ function NewInspection({ woId }) {
               <div className="insp-diag">
                 <h3>Recent diagnostics</h3>
                 <ul>
-                  {d.kind === 'leak' && <li>Battery {d.battery}%{d.lastTest ? `, last test ${ago(d.lastTest)}` : ', not tested since handover'}</li>}
+                  {d.kind === 'leak' && <li>{d.power === 'wired' ? 'Mains powered (5 V adapter)' : `Battery ${d.battery}%`}{d.lastTest ? `, last test ${ago(d.lastTest)}` : ', not tested since handover'}</li>}
                   {d.kind === 'crack' && <li>Latest {(lastReading(d) ?? 0).toFixed(2)} mm against a {d.limit} mm limit</li>}
                   {evs.map((e) => <li key={e.id}>{e.text}, {ago(e.at)}</li>)}
                   {!evs.length && d.kind === 'hub' && <li>No faults logged</li>}

@@ -21,7 +21,7 @@ export default function MyHouse() {
         <dl className="house-facts">
           <div><dt>Home</dt><dd>No. 12, Jalan Siaga 3</dd></div>
           <div><dt>Type</dt><dd>{RESIDENT.type}</dd></div>
-          <div><dt>Keys handed over</dt><dd>{fmtDate(Date.parse(RESIDENT.handover))}</dd></div>
+          <div><dt>Keys handed over</dt><dd>{state.handover ? fmtDate(state.handover.at) : 'Not yet'}</dd></div>
         </dl>
         <Segmented label="Floor" value={floor} onChange={pick} options={FLOORS.map((f) => [f.id, f.name])} />
       </div>

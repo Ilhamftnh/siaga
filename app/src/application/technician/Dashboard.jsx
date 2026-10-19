@@ -21,7 +21,7 @@ export default function Dashboard() {
     if (crack.over && crack.woId === w.id) reasons.push(['bad', 'Crack monitor above limit']);
     if (isOverdue(w, now)) reasons.push(['warn', 'Visit overdue since ' + fmtVisit(w.appointment)]);
     if (w.priority === 'urgent') reasons.push(['bad', 'Urgent']);
-    else if (w.priority === 'high' && !reasons.length) reasons.push(['warn', w.source === 'leak_sensor' ? 'Leak sensor alert' : w.signs.length ? 'Warning signs reported' : 'High priority']);
+    else if (w.priority === 'high' && !reasons.length) reasons.push(['warn', w.source === 'leak_sensor' ? 'Leak sensor alert' : w.source === 'crack_monitor' ? 'Crack monitor anomaly' : w.signs.length ? 'Warning signs reported' : 'High priority']);
     return { w, reasons };
   }).filter((x) => x.reasons.length).sort((a, b) => sortQueue(a.w, b.w));
 

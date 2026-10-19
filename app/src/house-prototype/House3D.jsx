@@ -42,7 +42,7 @@ const grassTex = (rx, ry) => canvasTex(256, 256, (g, w, h) => {
   for (let i = 0; i < 4000; i++) { const v = Math.random(); g.fillStyle = v > 0.5 ? 'rgba(130,170,90,.35)' : 'rgba(60,100,45,.35)'; g.fillRect(Math.random() * w, Math.random() * h, 1.5, 3); }
 }, rx, ry);
 
-export default function House3D({ leaks, hubOn = true, crackMm, monitored, view, setView }) {
+export default function House3D({ leaks, hubOn = true, crackMm, monitored, view, setView, scan = false, alertRoom = null }) {
   const mount = useRef(null);
   const api = useRef(null);
   const [failed, setFailed] = useState(false);
@@ -51,8 +51,12 @@ export default function House3D({ leaks, hubOn = true, crackMm, monitored, view,
     const el = mount.current;
     let renderer;
     try { renderer = new THREE.WebGLRenderer({ antialias: true }); } catch (e) { setFailed(true); return undefined; }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // Lighter rendering when embedded in the video-recording stage page (demo-stage.html)
+    let lite = false;
+    try { lite = window.top !== window && window.top.location.pathname.includes('demo-stage'); } catch (e) { lite = false; }
+    renderer.setPixelRatio(lite ? 1 : Math.min(window.devicePixelRatio || 1, 2));
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.autoUpdate = true;
     renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
     el.appendChild(renderer.domElement);
     const scene = new THREE.Scene();
@@ -222,50 +226,61 @@ export default function House3D({ leaks, hubOn = true, crackMm, monitored, view,
     nb.traverse((o) => { if (o.isMesh) o.castShadow = true; });
 
     // ---------- devices ----------
-    const label = (text) => {
+    const label = (text, sub, light) => {
       const c = document.createElement('canvas'); const g = c.getContext('2d'); g.font = '600 38px Inter, sans-serif';
-      const w = Math.ceil(g.measureText(text).width) + 36; c.width = w; c.height = 60;
-      g.fillStyle = 'rgba(35,38,42,.92)'; g.fillRect(0, 0, w, 60); g.fillStyle = '#fff'; g.font = '600 38px Inter, sans-serif'; g.textBaseline = 'middle'; g.fillText(text, 18, 32);
+      const w1 = g.measureText(text).width; g.font = '500 30px Inter, sans-serif'; const w2 = sub ? g.measureText(sub).width + 34 : 0;
+      const w = Math.ceil(w1 + w2) + 36; c.width = w; c.height = 60;
+      g.fillStyle = light ? 'rgba(255,255,255,.9)' : 'rgba(35,38,42,.92)'; g.fillRect(0, 0, w, 60); g.fillStyle = light ? '#23262a' : '#fff'; g.font = '600 38px Inter, sans-serif'; g.textBaseline = 'middle'; g.fillText(text, 18, 32);
+      if (sub) { const wired = sub.startsWith('Wired'); g.fillStyle = wired ? '#7cc4ff' : '#ffd36b'; g.font = '500 30px Inter, sans-serif'; g.fillText(sub, 18 + w1 + 22, 33); g.fillRect(18 + w1 + 8, 24, 6, 16); }
       const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
       sp.scale.set((1.1 * w) / 60, 1.1, 1); sp.renderOrder = 10; scene.add(sp); return sp;
     };
+    // room names for the cut-away (inside) view
+    const roomLabels = [['Living and dining', -4, 0.9, 1.5], ['Kitchen', 7.5, 0.9, 2], ['Bathroom', 7.5, 0.9, -6], ['Laundry', -8.5, 0.9, -2.2], ['Stairs and hall', -0.5, 0.9, -5.5]].map(([t, x, y, z]) => { const l = label(t, null, true); l.position.set(x, y + 0.6, z); l.scale.multiplyScalar(0.8); return l; });
+    // room highlight used when a sensor in that room raises an anomaly
+    const roomHi = new THREE.Mesh(new THREE.PlaneGeometry(15.6, 9.4), new THREE.MeshBasicMaterial({ color: 0xff3b30, transparent: true, opacity: 0, depthWrite: false }));
+    roomHi.rotation.x = -Math.PI / 2; roomHi.position.set(-3.9, 0.84, 3.3); scene.add(roomHi);
+    // scan rings shown while the inspector checks each device
+    const rings = [];
+    const ring = (x, y, z, vertical) => { const r = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.15, 40), new THREE.MeshBasicMaterial({ color: 0x2b8cff, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false })); r.position.set(x, y, z); if (vertical) r.rotation.y = Math.PI / 2; else r.rotation.x = -Math.PI / 2; scene.add(r); rings.push(r); };
     const devices = {};
     const ledMat = () => new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x22c55e, emissiveIntensity: 1.5 });
-    const mkLeak = (id, name, x, z, lx, ly, lz) => {
+    const mkLeak = (id, name, x, z, lx, ly, lz, power) => {
       const g = new THREE.Group(); g.position.set(x, 0.95, z); scene.add(g);
       box(0.9, 0.35, 0.6, white, 0, 0, 0, g);
       const led = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8), ledMat()); led.position.set(0.25, 0.2, 0.2); g.add(led);
       const pud = new THREE.Mesh(new THREE.CircleGeometry(1.4, 28), new THREE.MeshBasicMaterial({ color: 0x3d8fd9, transparent: true, opacity: 0, depthWrite: false }));
       pud.rotation.x = -Math.PI / 2; pud.position.set(x, 0.82, z); scene.add(pud);
       const light = new THREE.PointLight(0xff3b30, 0, 10, 2); light.position.set(x, 2, z); scene.add(light);
-      const lb = label(name); lb.position.set(lx, ly, lz);
+      const lb = label(name, power); lb.position.set(lx, ly, lz); ring(x, 0.9, z);
       devices[id] = { led, pud, light, lb };
     };
-    mkLeak('kitchen', 'Under kitchen sink', 10.1, 4.2, 9, 5.2, 4.2);
-    mkLeak('basin', 'Bathroom basin', 9.8, -3.6, 8.6, 5.2, -3.6);
-    mkLeak('laundry', 'Laundry area', -8, -5.6, -8, 5.4, -4.6);
+    mkLeak('kitchen', 'Under kitchen sink', 10.1, 4.2, 9, 5.2, 4.2, 'Wired 5 V');
+    mkLeak('basin', 'Bathroom basin', 9.8, -3.6, 8.6, 5.2, -3.6, 'Battery');
+    mkLeak('laundry', 'Laundry area', -8, -5.6, -8, 5.4, -4.6, 'Wired 5 V');
     // SIAGA hub on the hall wall
     box(1.4, 1, 0.4, white, -2.6, 4.2, -7.35);
     const hubLed = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8), ledMat()); hubLed.position.set(-2.15, 4.45, -7.1); scene.add(hubLed);
-    const hubLabel = label('SIAGA hub'); hubLabel.position.set(-2.6, 6.4, -7);
+    const hubLabel = label('SIAGA hub', 'Wired 5 V'); ring(-2.6, 4.2, -7.1, false); rings[rings.length - 1].rotation.x = 0; hubLabel.position.set(-2.6, 6.4, -7);
     // crack on the outside of the left wall, from the window corner
     const pts = [[-12.02, 6.7, 2.8], [-12.02, 7.1, 3.25], [-12.02, 7.4, 3.4], [-12.02, 7.9, 4.0], [-12.02, 8.4, 4.25]].map((p) => new THREE.Vector3(...p));
     const curve = new THREE.CatmullRomCurve3(pts);
-    scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.04, 6), new THREE.MeshBasicMaterial({ color: 0x3a2f27 })));
+    const crackLine = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.05, 6), new THREE.MeshBasicMaterial({ color: 0x3a2f27 })); scene.add(crackLine);
+    const crackIdx = crackLine.geometry.index.count;
     const glow = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.14, 8), new THREE.MeshBasicMaterial({ color: 0xff6b35, transparent: true, opacity: 0, depthWrite: false })); scene.add(glow);
     const monitor = new THREE.Group(); monitor.position.set(-12.15, 7.55, 3.55); monitor.rotation.y = -Math.PI / 2; scene.add(monitor);
     box(1.6, 0.35, 0.25, M(0xf2c200), 0, 0, 0, monitor); box(0.5, 0.6, 0.3, white, -0.9, 0, 0, monitor); box(0.5, 0.6, 0.3, white, 0.9, 0, 0, monitor);
-    const crackLabel = label('Crack at window W3'); crackLabel.position.set(-13.6, 10, 3.4);
+    const crackLabel = label('Crack monitor, W3', 'Battery'); ring(-12.3, 7.55, 3.55, true); crackLabel.position.set(-13.6, 10, 3.4);
 
     // ---------- light ----------
     scene.add(new THREE.HemisphereLight(0xf2f7ff, 0x8a9a78, 0.9));
     const sun = new THREE.DirectionalLight(0xfff0d8, 2.1); sun.position.set(-30, 52, 40); sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -50, right: 50, top: 50, bottom: -50, near: 1, far: 180 }); sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.02;
+    sun.shadow.mapSize.set(lite ? 1024 : 2048, lite ? 1024 : 2048); Object.assign(sun.shadow.camera, { left: -50, right: 50, top: 50, bottom: -50, near: 1, far: 180 }); sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.02;
     scene.add(sun);
     const fill = new THREE.DirectionalLight(0xdfe8ff, 0.5); fill.position.set(40, 20, 30); scene.add(fill);
 
-    const st = { leaks: {}, hubOn: true, crackMm: 0, monitored: false, tw: null, view: 'outside' };
+    const st = { leaks: {}, hubOn: true, crackMm: 0, monitored: false, tw: null, view: 'outside', scan: false, alertRoom: null };
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     function goView(name, instant) {
       const v = VIEWS[name]; st.view = name;
@@ -276,14 +291,18 @@ export default function House3D({ leaks, hubOn = true, crackMm, monitored, view,
       else st.tw = { p0: camera.position.clone(), t0: controls.target.clone(), p, t, s: performance.now() };
       Object.values(devices).forEach((d) => { d.lb.visible = v.open; });
       hubLabel.visible = v.open;
-      crackLabel.visible = name === 'crack';
+      crackLabel.visible = name === 'crack' || (v.open && st.monitored);
+      roomLabels.forEach((l) => { l.visible = v.open; });
     }
     function resize() { const w = el.clientWidth, h = el.clientHeight; if (!w || !h) return; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
     const ro = new ResizeObserver(resize); ro.observe(el); resize(); goView('outside', true);
     api.current = { st, goView };
     controls.addEventListener('start', () => { st.tw = null; });
     let raf;
+    let lastDraw = 0;
     const frame = (now) => {
+      if (lite && now - lastDraw < (st.tw ? 120 : st.scan || st.alertRoom ? 200 : 400)) { raf = requestAnimationFrame(frame); return; }
+      lastDraw = now;
       if (st.tw) { let k = Math.min(1, (now - st.tw.s) / 900); k = k * k * (3 - 2 * k); camera.position.lerpVectors(st.tw.p0, st.tw.p, k); controls.target.lerpVectors(st.tw.t0, st.tw.t, k); if (k >= 1) st.tw = null; }
       const pulse = reduce ? 0.7 : 0.45 + 0.35 * Math.sin(now * 0.006);
       Object.entries(devices).forEach(([id, d]) => {
@@ -295,15 +314,24 @@ export default function House3D({ leaks, hubOn = true, crackMm, monitored, view,
         d.light.intensity = wet ? pulse * 2.4 : 0;
       });
       monitor.visible = st.monitored;
+      crackLabel.visible = st.view === 'crack' || (st.view === 'inside' && st.monitored);
       const hc = st.hubOn ? 0x22c55e : 0x777b80; hubLed.material.color.set(hc); hubLed.material.emissive.set(hc); hubLed.material.emissiveIntensity = st.hubOn ? 1.5 : 0.05;
       glow.material.opacity = st.crackMm > 0.02 ? Math.min(0.85, 0.25 + st.crackMm) * pulse : 0;
+      // the crack lengthens as the wall moves: 35% drawn is the fine crack recorded at handover
+      const k = Math.min(1, 0.35 + st.crackMm / 0.9);
+      const cnt = Math.round((crackIdx / 36) * k) * 36;
+      crackLine.geometry.setDrawRange(0, cnt); glow.geometry.setDrawRange(0, Math.round((glow.geometry.index.count / 48) * k) * 48);
+      crackLine.scale.setScalar(1); crackLine.material.color.set(st.crackMm > 0.4 ? 0x5a1f12 : 0x3a2f27);
+      roomHi.material.opacity = st.alertRoom === 'living' ? 0.12 + 0.18 * pulse : 0;
+      const sp = (now % 1400) / 1400;
+      rings.forEach((r, i) => { if (!st.scan || (i === rings.length - 1 && !st.monitored && false)) { r.material.opacity = 0; return; } const ph = (sp + i * 0.15) % 1; r.scale.setScalar(0.6 + ph * 1.8); r.material.opacity = 0.75 * (1 - ph); });
       controls.update(); renderer.render(scene, camera); raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
     return () => { cancelAnimationFrame(raf); ro.disconnect(); controls.dispose(); renderer.dispose(); el.removeChild(renderer.domElement); };
   }, []);
 
-  useEffect(() => { if (api.current) Object.assign(api.current.st, { leaks, hubOn, crackMm, monitored }); }, [leaks, hubOn, crackMm, monitored]);
+  useEffect(() => { if (api.current) { Object.assign(api.current.st, { leaks, hubOn, crackMm, monitored, scan, alertRoom }); } }, [leaks, hubOn, crackMm, monitored, scan, alertRoom]);
   useEffect(() => { if (api.current && view !== api.current.st.view) api.current.goView(view); }, [view]);
 
   if (failed) return <div className="three-fail">The 3D view needs WebGL, which this browser has turned off. Everything else still works.</div>;

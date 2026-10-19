@@ -4,14 +4,14 @@
 // can run in one tab and the apps in another. A real deployment would replace this with a backend API.
 
 import { createContext, useContext, useEffect, useReducer, useRef } from 'react';
-import { seedState, DEMO_HOME, techName, catName, STATUS } from '../data/seed.js';
+import { seedState, preHandoverState, DEMO_HOME, techName, catName, STATUS, ME } from '../data/seed.js';
 
-const KEY = 'siaga-demo-v4';
+const KEY = 'siaga-demo-v5';
 
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
-    if (s && s.v === 4) return s;
+    if (s && s.v === 5) return s;
   } catch (e) { /* storage unavailable */ }
   return seedState();
 }
@@ -41,6 +41,8 @@ function residentUpdate(s, w, title, body) {
   if (w.home !== DEMO_HOME) return s;
   return notify(s, { title, body: `${w.id}, ${w.title.toLowerCase()}: ${body}`, kind: 'update', link: 'maintenance/' + w.id, pref: 'maintenance' });
 }
+
+const INSPECTOR = 'Nurul Aina, building inspector (sample)';
 
 function reducer(s, a) {
   switch (a.type) {
@@ -76,15 +78,20 @@ function reducer(s, a) {
     case 'sim/crack':
       return { ...s, sim: { ...s.sim, crackMm: a.mm } };
     case 'tick': {
+      // Only the house prototype tab (the simulated hardware) sends ticks, and only a fitted,
+      // online crack monitor records a reading. Otherwise the state is returned unchanged so
+      // nothing is written and other tabs' changes are never overwritten.
       const d = s.devices['crack-w3'];
       const now = Date.now();
-      if (now - (s.lastTick || 0) < 1800) return s;
-      let n = { ...s, lastTick: now };
-      if (!d.installed || !d.online || !s.devices.hub.online) return n;
+      if (!d.installed || !d.online || !s.devices.hub.online) return s;
+      const last = d.readings[d.readings.length - 1];
+      if (last && now - last.at < 1800) return s;
       const mm = Math.max(0, +(s.sim.crackMm - d.base).toFixed(2));
       const readings = [...d.readings, { at: now, mm }].slice(-90);
+      // Guided demo: readings are recorded, but the anomaly is raised by its own step
+      if (s.demo && s.demo.step > 0) return setDevice(s, 'crack-w3', { readings, lastSeen: now });
       const over = d.limit != null && mm > d.limit;
-      n = setDevice(n, 'crack-w3', { readings, lastSeen: now, over });
+      let n = setDevice(s, 'crack-w3', { readings, lastSeen: now, over });
       if (over && !d.over) {
         n = logEvent(n, 'crack-w3', `Movement ${mm.toFixed(2)} mm passed the ${d.limit} mm limit`, 'bad');
         if (d.alerts) n = notify(n, { title: 'Crack movement above limit', body: `The crack monitor at window W3 recorded ${mm.toFixed(2)} mm, above the ${d.limit} mm limit set by your technician. They have been told.`, kind: 'alert', link: 'devices/crack-w3', pref: 'device' });
@@ -183,6 +190,99 @@ function reducer(s, a) {
       if (a.record.woId) n = setWo(n, a.record.woId, (w) => ({ ...w, findings: [...w.findings, ...a.record.items], timeline: line(w, `Inspection ${id} recorded`) }));
       return n;
     }
+
+    // ---------- guided live demo (deterministic, step by step) ----------
+    case 'demo/start': {
+      let n = preHandoverState();
+      n = logEvent(n, 'hub', `Pre-handover baseline inspection started by ${INSPECTOR}`, 'info');
+      return { ...n, demo: { step: 1, startedAt: Date.now() } };
+    }
+    case 'demo/baseline': {
+      if (s.demo.step !== 1) return s;
+      const id = 'INS-0' + s.nextIns;
+      const now = Date.now();
+      const rec = {
+        id, home: DEMO_HOME, type: 'handover', at: now, by: INSPECTOR, live: true,
+        items: [
+          { area: 'Kitchen plumbing', result: 'ok', note: 'No leaks seen. Leak sensor under the sink tested: dry, responding.', deviceId: 'leak-kitchen', reading: 'Dry' },
+          { area: 'Bathroom plumbing', result: 'ok', note: 'No leaks seen. Leak sensor at the basin tested: dry, responding.', deviceId: 'leak-basin', reading: 'Dry' },
+          { area: 'Laundry area', result: 'ok', note: 'No leaks seen. Leak sensor tested: dry, responding.', deviceId: 'leak-laundry', reading: 'Dry' },
+          { area: 'Side wall, window W3', result: 'potential', note: 'Fine surface crack at the lower window corner, about 120 mm long, photographed. Crack monitor fitted across it. Baseline reading 0.00 mm; alert limit 0.40 mm of movement.', deviceId: 'crack-w3', reading: '0.00 mm' },
+          { area: 'Living room walls and ceilings', result: 'ok', note: 'No other visible cracks, staining or damp.' },
+          { area: 'SIAGA hub', result: 'ok', note: 'Powered, on Wi-Fi, all four sensors paired.', deviceId: 'hub' },
+        ],
+      };
+      let n = { ...s, inspections: [rec, ...s.inspections], nextIns: s.nextIns + 1, handover: { at: now, inspectionId: id } };
+      n = setDevice(n, 'crack-w3', { installed: true, limit: 0.4, base: s.sim.crackMm, readings: [{ at: now, mm: 0 }], over: false, woId: null, online: true, installedAt: now, baselineId: id, anomaly: null });
+      ['leak-kitchen', 'leak-basin', 'leak-laundry'].forEach((d) => { n = setDevice(n, d, { lastTest: now, lastSeen: now }); });
+      n = logEvent(n, 'crack-w3', 'Crack monitor fitted at handover. Baseline 0.00 mm, limit 0.40 mm', 'ok');
+      n = logEvent(n, 'hub', `Baseline recorded (${id}). Handover inspection complete`, 'ok');
+      n = notify(n, { title: 'Handover inspection recorded', body: `Your home was inspected before handover (${id}). The baseline readings are saved. One item noted: a fine crack at window W3, now monitored. This record is not a safety certificate.`, kind: 'info', link: 'profile/inspection' });
+      return { ...n, demo: { ...s.demo, step: 2, baselineId: id } };
+    }
+    case 'demo/defect':
+      if (s.demo.step !== 2) return s;
+      return logEvent({ ...s, demo: { ...s.demo, step: 3 } }, 'crack-w3', 'Months after handover (simulated): wall movement starting at W3', 'warn');
+    case 'demo/anomaly': {
+      if (s.demo.step !== 3) return s;
+      const d = s.devices['crack-w3'];
+      const now = Date.now();
+      const mm = Math.max(0, +(s.sim.crackMm - d.base).toFixed(2));
+      const anomaly = { at: now, baselineMm: 0, currentMm: mm, limit: d.limit, baselineId: d.baselineId };
+      let n = setDevice(s, 'crack-w3', { readings: [...d.readings, { at: now, mm }].slice(-90), over: mm > d.limit, anomaly, lastSeen: now });
+      n = logEvent(n, 'crack-w3', `Anomaly: ${mm.toFixed(2)} mm against a 0.00 mm baseline (limit ${d.limit} mm)`, 'bad');
+      return { ...n, demo: { ...s.demo, step: 4 } };
+    }
+    case 'demo/alert': {
+      if (s.demo.step !== 4) return s;
+      const a0 = s.devices['crack-w3'].anomaly;
+      let n = notify(s, { title: 'Potential crack movement: inspection required', body: `The crack monitor at window W3 (living room) reads ${a0.currentMm.toFixed(2)} mm against its 0.00 mm handover baseline, above the ${a0.limit} mm limit. SIAGA cannot tell whether this is serious. A technician should inspect it.`, kind: 'alert', link: 'devices/crack-w3' });
+      n = logEvent(n, 'crack-w3', 'Resident alerted', 'warn');
+      return { ...n, demo: { ...s.demo, step: 5 } };
+    }
+    case 'demo/workorder': {
+      if (s.demo.step !== 5) return s;
+      const d = s.devices['crack-w3'];
+      const id = 'WO-' + s.nextWo;
+      const now = Date.now();
+      const w = {
+        id, home: DEMO_HOME, category: 'crack', title: 'Potential crack movement at window W3', room: 'living', location: 'Side wall, lower corner of window W3',
+        description: `Crack monitor reading ${d.anomaly.currentMm.toFixed(2)} mm against the 0.00 mm baseline recorded at handover (${d.baselineId}). Limit ${d.limit} mm.`,
+        priority: 'high', status: 'new', source: 'crack_monitor', deviceId: 'crack-w3', shareReadings: true, evidence: d.anomaly,
+        photo: null, boxes: [], ai: null, signs: [], prefTime: '', assignee: null, appointment: null, notes: [], findings: [], completion: null,
+        followUp: null, aiAgree: null, firstResponse: null, created: now, updated: now, sample: false,
+        timeline: [{ at: now, text: 'Created from a crack monitor anomaly; resident alerted' }],
+      };
+      let n = { ...s, workOrders: [w, ...s.workOrders], nextWo: s.nextWo + 1, lastCreated: id };
+      n = setDevice(n, 'crack-w3', { woId: id });
+      n = notify(n, { title: 'Inspection request created', body: `${id}: a technician will inspect the crack at window W3. The baseline and current readings are attached.`, kind: 'update', link: 'maintenance/' + id, pref: 'maintenance' });
+      return { ...n, demo: { ...s.demo, step: 6, woId: id } };
+    }
+    case 'demo/inspect': {
+      if (s.demo.step !== 6) return s;
+      const id = s.demo.woId;
+      const insId = 'INS-0' + s.nextIns;
+      const now = Date.now();
+      const d = s.devices['crack-w3'];
+      const finding = { area: 'Side wall, window W3', result: 'confirmed', note: `Sample finding: crack has lengthened from the handover photo; monitor reads ${d.anomaly.currentMm.toFixed(2)} mm above baseline. Referred to a structural engineer for assessment before repair.` };
+      let n = setWo(s, id, (w) => ({ ...w, assignee: ME, firstResponse: now, appointment: now, status: 'in_progress', findings: [...w.findings, finding],
+        timeline: [...line(w, `Assigned to ${techName(ME)}`), { at: now, text: 'Visit booked and work started' }, { at: now, text: `Inspection ${insId} recorded: movement confirmed on site` }] }));
+      n = { ...n, inspections: [{ id: insId, home: DEMO_HOME, type: 'device', at: now, by: techName(ME), woId: id, items: [finding] }, ...n.inspections], nextIns: n.nextIns + 1 };
+      n = notify(n, { title: 'Inspection completed', body: `${id}: ${techName(ME)} inspected the crack at window W3 and confirmed it has moved since handover. Next: an engineer's assessment, then repair.`, kind: 'update', link: 'maintenance/' + id, pref: 'maintenance' });
+      return { ...n, demo: { ...s.demo, step: 7, inspectionId: insId } };
+    }
+    case 'demo/resolve': {
+      if (s.demo.step !== 7) return s;
+      const id = s.demo.woId;
+      const now = Date.now();
+      const summary = 'Sample: repaired as specified in the engineer\'s assessment. Monitor kept in place with a new 0.00 mm baseline for 3 months of follow-up.';
+      let n = setWo(s, id, (w) => ({ ...w, status: 'completed', completion: { at: now, by: ME, summary }, timeline: line(w, 'Completed') }));
+      n = { ...n, sim: { ...n.sim, crackMm: 0 } };
+      n = setDevice(n, 'crack-w3', { base: 0, readings: [{ at: now, mm: 0 }], over: false, anomaly: null });
+      n = logEvent(n, 'crack-w3', 'Repair completed. New baseline 0.00 mm', 'ok');
+      n = notify(n, { title: 'Maintenance completed', body: `${id}: ${summary}`, kind: 'update', link: 'maintenance/' + id, pref: 'maintenance' });
+      return { ...n, demo: { ...s.demo, step: 8 } };
+    }
     case 'reset':
       return seedState();
     default:
@@ -204,7 +304,7 @@ export function StoreProvider({ children, ticks = false }) {
   useEffect(() => {
     const onStorage = (e) => {
       if (e.key !== KEY || !e.newValue) return;
-      try { const s = JSON.parse(e.newValue); if (s && s.v === 4) { fromOtherTab.current = true; dispatch({ type: 'hydrate', state: s }); } } catch (err) { /* ignore */ }
+      try { const s = JSON.parse(e.newValue); if (s && s.v === 5) { fromOtherTab.current = true; dispatch({ type: 'hydrate', state: s }); } } catch (err) { /* ignore */ }
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
@@ -212,7 +312,7 @@ export function StoreProvider({ children, ticks = false }) {
 
   useEffect(() => {
     if (!ticks) return undefined;
-    const t = setInterval(() => dispatch({ type: 'tick' }), 2000);
+    const t = setInterval(() => { if (window.location.hash.startsWith('#/house')) dispatch({ type: 'tick' }); }, 2000);
     return () => clearInterval(t);
   }, [ticks]);
 

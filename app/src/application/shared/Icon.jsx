@@ -34,6 +34,9 @@ const P = {
   pin: 'M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
   phone: 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z',
   filter: 'M4 5h16l-6 7.5V19l-4 1.5v-8z',
+  refresh: 'M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6',
+  dot: 'M12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
+  chip: 'M7 7h10v10H7zM10 4v3M14 4v3M10 17v3M14 17v3M4 10h3M4 14h3M17 10h3M17 14h3',
 };
 
 export default function Icon({ name, size = 20, className = '', title }) {

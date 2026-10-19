@@ -3,8 +3,9 @@ import { href } from './shared/services/router.js';
 import Icon from './application/shared/Icon.jsx';
 
 const ITEMS = [
-  { path: 'house', icon: 'house3d', title: 'House prototype', body: '3D model of a two-storey terrace home with three leak sensors, a crack monitor point and a hub. Use it to trigger leaks, take devices offline and move the crack.' },
+  { path: 'house', icon: 'house3d', title: 'House prototype', body: '3D model of a two-storey terrace home with three leak sensors, a crack monitor point and a hub. Includes a step-by-step live demo: baseline before handover, a defect months later, alert, work order, inspection and repair.' },
   { path: 'app/resident', icon: 'home', title: 'Resident app', body: 'For the homeowner: home status, floor plan, devices, maintenance requests with the AI crack check, notifications.' },
+  { path: 'system', icon: 'chip', title: 'System, wiring and costs', body: 'Sensor quantities from the house layout, how the crack monitor works, wiring diagrams, battery or wired, where rules end and AI starts, and a bill of materials with sourced Malaysian prices.' },
   { path: 'app/technician', icon: 'wrench', title: 'Technician app', body: 'For maintenance staff: job queue, work orders and their workflow, device inspections, job history and an overview of the phase.' },
 ];
 

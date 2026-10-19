@@ -105,3 +105,35 @@ export function AiPhoto({ src, boxes = [], w, h, alt = 'Photo of the wall crack'
 }
 
 export const KIND_ICON = { leak: 'drop', crack: 'crack', hub: 'hub' };
+
+// Handover baseline next to the current reading, with a simple drawing of the crack at each point.
+// The drawing is schematic: it shows that the crack changed, not its real size.
+export function BaselineCompare({ evidence, current, confirmed, compact }) {
+  if (!evidence) return null;
+  const now = current != null ? current : evidence.currentMm;
+  const grow = Math.min(1, now / Math.max(0.01, (evidence.limit || 0.4) * 1.5));
+  const crack = (k) => {
+    const pts = [[18, 18], [30, 32], [27, 44], [42, 58], [40, 70], [56, 86], [60, 100]];
+    const n = Math.max(2, Math.round(2 + k * (pts.length - 2)));
+    return pts.slice(0, n).map((p) => p.join(',')).join(' ');
+  };
+  const Card = ({ title, sub, mm, k, tone }) => (
+    <div className={'bc-card' + (tone ? ' ' + tone : '')}>
+      <svg viewBox="0 0 120 110" className="bc-wall" aria-hidden="true">
+        <rect x="0" y="0" width="120" height="110" className="bc-bg" />
+        <rect x="6" y="6" width="34" height="12" className="bc-win" />
+        <polyline points={crack(k)} className="bc-crack" style={{ strokeWidth: 1.4 + k * 2.2 }} />
+      </svg>
+      <div><span className="xs muted">{title}</span><b className="num">{mm.toFixed(2)} mm</b><span className="xs muted">{sub}</span></div>
+    </div>
+  );
+  return (
+    <div className={'bc' + (compact ? ' compact' : '')}>
+      <div className="bc-row">
+        <Card title="At handover" sub={evidence.baselineId ? `Baseline, ${evidence.baselineId}` : 'Baseline'} mm={evidence.baselineMm || 0} k={0.15} />
+        <Card title={current != null ? 'Now' : 'When flagged'} sub={`Limit ${evidence.limit} mm`} mm={now} k={0.15 + 0.85 * grow} tone={now > evidence.limit ? 'over' : ''} />
+      </div>
+      <p className="xs muted">{confirmed ? 'Movement confirmed by a technician on site.' : 'Potential movement. Not yet inspected, so nothing is confirmed.'} Readings are movement across the crack since the baseline; the drawings are schematic.</p>
+    </div>
+  );
+}

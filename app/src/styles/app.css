@@ -60,3 +60,16 @@
 .launch-notes ul { margin: 0; padding-left: 18px; font-size: 14px; color: var(--ink-2); }
 .launch-notes li { margin: 4px 0; }
 .loading { padding: 40px; text-align: center; color: var(--muted); }
+/* Baseline vs current comparison */
+.bc { display: flex; flex-direction: column; gap: 8px; }
+.bc-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.bc-card { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); }
+.bc-card > div { display: flex; flex-direction: column; gap: 1px; }
+.bc-card b { font-size: 18px; }
+.bc-card.over { border-color: #e5484d; background: #fff6f6; }
+.bc-card.over b { color: #c62a2f; }
+.bc-wall { width: 100%; height: 110px; border-radius: 6px; }
+.bc-bg { fill: #efebe3; }
+.bc-win { fill: #b9cdd8; stroke: #2e3134; stroke-width: 1.5; }
+.bc-crack { fill: none; stroke: #3a2f27; stroke-linecap: round; stroke-linejoin: round; }
+.bc.compact .bc-wall { max-height: 70px; }

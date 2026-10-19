@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../../shared/services/store.jsx';
-import { RESIDENT, BASELINE } from '../../shared/data/seed.js';
+import { RESIDENT } from '../../shared/data/seed.js';
 import { fmtDate } from '../../shared/services/format.js';
 import { href } from '../../shared/services/router.js';
 import Icon from '../shared/Icon.jsx';
@@ -27,15 +27,17 @@ export default function Profile({ rest }) {
   const toast = useToast();
   const [reset, setReset] = useState(false);
   if (rest[0] === 'inspection') {
+    const rec = state.inspections.find((i) => i.home === RESIDENT.home && i.type === 'handover');
+    if (!rec) return <Page title="Handover inspection" back={['profile', 'Profile']}><div className="panel panel-pad small">Your home has not had its pre-handover inspection yet. The record appears here once the inspector completes it.</div></Page>;
     return (
       <Page title="Handover inspection" back={['profile', 'Profile']}>
         <dl className="kv panel panel-pad">
-          <dt>Inspected</dt><dd>{fmtDate(BASELINE.at)}</dd>
-          <dt>Inspector</dt><dd>{BASELINE.by}</dd>
-          <dt>Record</dt><dd>{BASELINE.id}</dd>
+          <dt>Inspected</dt><dd>{fmtDate(rec.at)}</dd>
+          <dt>Inspector</dt><dd>{rec.by}</dd>
+          <dt>Record</dt><dd>{rec.id}</dd>
         </dl>
-        <InspectionItems items={BASELINE.items} />
-        <p className="small muted">This record is the starting point for your home. If a recorded item changes, technicians compare it with this inspection. Sample record for the demo.</p>
+        <InspectionItems items={rec.items} />
+        <p className="small muted">This record is the starting point for your home. If a recorded item changes, technicians compare it with this inspection. It records what was seen and measured; it is not a safety certificate. Sample record for the demo.</p>
       </Page>
     );
   }
@@ -58,11 +60,11 @@ export default function Profile({ rest }) {
         <dl className="kv panel panel-pad">
           <dt>Address</dt><dd>No. 12, Jalan Siaga 3, {RESIDENT.township}</dd>
           <dt>Type</dt><dd>{RESIDENT.type}</dd>
-          <dt>Keys handed over</dt><dd>{fmtDate(Date.parse(RESIDENT.handover))}</dd>
+          <dt>Keys handed over</dt><dd>{state.handover ? fmtDate(state.handover.at) : 'Not yet'}</dd>
         </dl>
         <ul className="rows panel"><li><a className="row" href={href(BASE + '/profile/inspection')}>
           <Icon name="clipboard" className="muted" />
-          <span className="row-main"><span className="row-title">Handover inspection</span><span className="row-sub">{fmtDate(BASELINE.at)}, 1 item recorded</span></span>
+          <span className="row-main"><span className="row-title">Handover inspection</span><span className="row-sub">{(() => { const r = state.inspections.find((i) => i.home === RESIDENT.home && i.type === 'handover'); return r ? `${fmtDate(r.at)}, ${r.id}` : 'Not inspected yet'; })()}</span></span>
           <Icon name="right" size={18} className="chev" />
         </a></li></ul>
       </section>

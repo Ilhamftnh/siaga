@@ -1,0 +1,56 @@
+/* System, wiring and costs reference page */
+.sys { max-width: 1180px; margin: 0 auto; padding: 24px 16px 60px; display: flex; flex-direction: column; gap: 34px; background: var(--paper); }
+.sys-head h1 { font-size: 26px; }
+.sys-head p { margin-top: 6px; color: var(--ink-2); max-width: 760px; }
+.sys-toc { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.sys-toc a { padding: 6px 11px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); text-decoration: none; font-size: 13px; font-weight: 550; color: var(--ink-2); }
+.sys-sec { display: flex; flex-direction: column; gap: 12px; scroll-margin-top: 50px; }
+.sys-sec > h2 { font-size: 19px; }
+.sys h3 { font-size: 14.5px; margin-bottom: 8px; }
+.sys h3 + * { margin-top: 0; }
+.sys .panel h3:not(:first-child) { margin-top: 14px; }
+.sys-grid2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+@media (min-width: 880px) { .sys-grid2 { grid-template-columns: 1fr 1fr; } }
+.sys figure { margin: 0; }
+.sys figcaption { margin-top: 8px; }
+.block { display: block; }
+.sys-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.sys-table th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12.5px; padding: 6px 8px; border-bottom: 1px solid var(--line-2); }
+.sys-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.sys-table .r { text-align: right; white-space: nowrap; }
+.sys-table tr.cat td { background: var(--paper); font-weight: 650; font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-2); }
+.sys-table tr.sum td { font-weight: 700; border-top: 2px solid var(--ink); }
+.sys-table.bom { min-width: 1100px; font-size: 12.5px; }
+.sys-scroll { overflow-x: auto; }
+.sys-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
+.pw { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.pw-wired { background: #e3f1ff; color: #1b5d99; } .pw-battery { background: #fff3d6; color: #8a5a00; }
+.sys-flow { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; counter-reset: f; }
+.sys-flow li { position: relative; padding: 12px 14px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; animation: sysPulse 2.8s ease-in-out infinite; }
+.sys-flow li span { font-size: 12.5px; color: var(--muted); }
+.sys-flow li:not(:last-child)::after { content: '→'; position: absolute; right: -10px; top: 50%; transform: translateY(-50%); color: var(--brand); font-weight: 700; z-index: 1; }
+@keyframes sysPulse { 0%, 100% { border-color: var(--line); } 15% { border-color: var(--brand); box-shadow: 0 0 0 2px rgba(43,76,155,.15); } }
+.sys-svg { width: 100%; height: auto; display: block; }
+.sys-svg .lbl { font: 500 10.5px Inter, sans-serif; fill: var(--ink-2); } .sys-svg .lbl.w { fill: #fff; } .sys-svg .lbl.b { font-weight: 700; } .sys-svg .lbl.muted { fill: var(--muted); }
+.sys-svg .wall { fill: #e6e1d7; stroke: #c9c2b4; }
+.sys-svg .crack-edge { stroke: #3a2f27; stroke-width: 1.5; }
+.sys-svg .sensor { fill: #2b4c9b; } .sys-svg .magnet { fill: #c62a2f; }
+.sys-svg .dim { stroke: #c62a2f; stroke-dasharray: 3 3; }
+.sys-svg .esp { fill: #23262a; } .sys-svg .pin { fill: #d9b44a; }
+.sys-svg .adapter { fill: #5d6670; } .sys-svg .adapter.batt { fill: #8a5a00; }
+.sys-svg .sensorpcb { fill: #1f6f4a; } .sys-svg .trace { stroke: #d9b44a; stroke-width: 3; }
+.sys-svg .wire { fill: none; stroke-width: 2.6; } .wire.red { stroke: #d63b3b; } .wire.black { stroke: #333; } .wire.sig { stroke: #e2a400; } .wire.usb { stroke: #7a8591; stroke-width: 4; }
+.sys-svg .crackline { fill: none; stroke: #3a2f27; stroke-width: 2; }
+.sys-meter { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; margin-top: 8px; }
+.sys-meter .bar { flex-basis: 100%; height: 8px; border-radius: 4px; background: var(--paper); overflow: hidden; }
+.sys-meter .bar i { display: block; height: 100%; background: var(--brand); transition: width .1s linear; }
+.sys-calc { display: flex; gap: 12px; flex-wrap: wrap; margin: 8px 0; }
+.sys-calc label { display: flex; flex-direction: column; gap: 4px; }
+.sys-calc input { width: 140px; min-height: 36px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: 6px; font: inherit; }
+.sys-pipe { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.sys-pipe li { display: flex; flex-direction: column; padding: 8px 12px; border-radius: 7px; border-left: 4px solid; background: var(--paper); }
+.sys-pipe li span { font-size: 12.5px; color: var(--ink-2); }
+.sys-pipe .ai, .sys-key .ai { border-color: #7a3fd1; } .sys-pipe .rule, .sys-key .rule { border-color: #2b4c9b; } .sys-pipe .human, .sys-key .human { border-color: #1f9d55; }
+.sys-key { grid-column: 1 / -1; display: flex; gap: 14px; flex-wrap: wrap; }
+.sys-key .k { padding-left: 8px; border-left: 4px solid; }
+@media (prefers-reduced-motion: reduce) { .sys-flow li { animation: none; } }

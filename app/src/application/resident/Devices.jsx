@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useStore, deviceState, lastReading } from '../../shared/services/store.jsx';
-import { ROOMS, roomName } from '../../shared/data/seed.js';
+import { ROOMS, roomName, techName } from '../../shared/data/seed.js';
 import { LEAK_GUIDANCE } from '../../shared/data/guidance.js';
 import { ago, fmtDateTime } from '../../shared/services/format.js';
 import { href, go } from '../../shared/services/router.js';
 import Icon from '../shared/Icon.jsx';
 import { Segmented, Empty, Badge, Button, useToast, useNow } from '../shared/ui.jsx';
-import { MoveChart } from '../shared/visuals.jsx';
+import { MoveChart, BaselineCompare } from '../shared/visuals.jsx';
 import { DeviceRow, KIND_ICON, deviceMeta } from './DeviceRow.jsx';
 import { Page, BASE } from './Page.jsx';
 
@@ -79,13 +79,32 @@ function DeviceDetail({ id }) {
         </section>
       )}
 
+      {d.kind === 'crack' && d.anomaly && (
+        <section className="notice t-bad">
+          <Icon name="crack" />
+          <div>
+            <b>Potential crack movement: inspection required</b>
+            <dl className="kv tight-kv">
+              <dt>Room</dt><dd>{roomName(d.room)}, {d.spot.toLowerCase()}</dd>
+              <dt>Type</dt><dd>Wall crack, crack monitor reading</dd>
+              <dt>Priority</dt><dd>High</dd>
+              <dt>Detected</dt><dd>{fmtDateTime(d.anomaly.at)}</dd>
+              <dt>Next step</dt><dd>{wo ? `${wo.id}: ${wo.status === 'completed' ? 'completed' : wo.assignee ? techName(wo.assignee) + ' is handling it' : 'waiting for a technician'}` : 'An inspection request is being prepared for you'}</dd>
+            </dl>
+            <p className="small">Keep using the room as normal unless you notice new signs, such as a door or window that starts sticking, or cracks that widen quickly. If you are worried, leave the room and call the township helpdesk.</p>
+            {wo && <div className="btnrow" style={{ marginTop: 10 }}><Button size="sm" onClick={() => go(`${BASE}/maintenance/${wo.id}`)}>View {wo.id}</Button></div>}
+          </div>
+        </section>
+      )}
+      {d.kind === 'crack' && d.anomaly && <section className="section"><h2>Handover baseline and now</h2><BaselineCompare evidence={d.anomaly} current={lastReading(d)} confirmed={!!(wo && wo.findings.some((f) => f.result === 'confirmed'))} /></section>}
+
       {(d.kind === 'leak' || (d.kind === 'crack' && d.installed)) && <ul className="devlist panel"><DeviceRow d={d} controlsOnly /></ul>}
 
       {d.kind === 'crack' && d.installed && (
         <section className="section">
           <div className="section-head"><h2>Movement</h2><span className="small muted num">Latest {(lastReading(d) ?? 0).toFixed(2)} mm</span></div>
           <div className="panel panel-pad"><MoveChart readings={d.readings} limit={d.limit} /></div>
-          <p className="small muted">The limit was set by your technician{wo ? ` on ${wo.id}` : ''}. Readings are relative to when the monitor was fitted. A photo or reading cannot tell you if a wall is safe; your technician decides what happens next.</p>
+          <p className="small muted">The limit was set {d.baselineId ? `at the handover inspection (${d.baselineId})` : `by your technician${wo ? ` on ${wo.id}` : ''}`}. Readings are relative to when the monitor was fitted. A photo or reading cannot tell you if a wall is safe; your technician decides what happens next.</p>
         </section>
       )}
       {d.kind === 'crack' && !d.installed && (

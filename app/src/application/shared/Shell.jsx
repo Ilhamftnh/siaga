@@ -3,7 +3,7 @@ import { href } from '../../shared/services/router.js';
 
 // Thin bar shown above every prototype so judges can move between the separate products.
 export function DemoBar({ current }) {
-  const items = [['house', 'House prototype'], ['app/resident', 'Resident app'], ['app/technician', 'Technician app']];
+  const items = [['house', 'House prototype'], ['app/resident', 'Resident app'], ['app/technician', 'Technician app'], ['system', 'System and costs']];
   return (
     <div className="demobar">
       <a className="demobar-home" href={href('')}>SIAGA prototypes</a>

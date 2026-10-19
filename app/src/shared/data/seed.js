@@ -114,13 +114,15 @@ function wo(o) {
 
 export function seedState(now = Date.now()) {
   return {
-    v: 4,
+    v: 5,
+    demo: { step: 0 },
+    handover: { at: BASELINE.at, inspectionId: BASELINE.id },
     devices: {
-      'leak-kitchen': { id: 'leak-kitchen', kind: 'leak', name: 'Leak sensor', spot: 'Under kitchen sink', room: 'kitchen', wet: false, online: true, alerts: true, battery: 94, lastSeen: now, ack: false },
-      'leak-basin': { id: 'leak-basin', kind: 'leak', name: 'Leak sensor', spot: 'Bathroom basin plumbing', room: 'bath', wet: false, online: true, alerts: true, battery: 91, lastSeen: now, ack: false },
-      'leak-laundry': { id: 'leak-laundry', kind: 'leak', name: 'Leak sensor', spot: 'Laundry, behind washer', room: 'laundry', wet: false, online: true, alerts: true, battery: 88, lastSeen: now, ack: false },
-      'crack-w3': { id: 'crack-w3', kind: 'crack', name: 'Crack monitor', spot: 'Side wall, window W3', room: 'living', installed: false, online: true, alerts: true, limit: null, base: 0, readings: [], over: false, woId: null, lastSeen: now },
-      hub: { id: 'hub', kind: 'hub', name: 'SIAGA hub', spot: 'Hall, next to the DB box', room: 'hall', online: true, lastSeen: now },
+      'leak-kitchen': { power: 'wired', id: 'leak-kitchen', kind: 'leak', name: 'Leak sensor', spot: 'Under kitchen sink', room: 'kitchen', wet: false, online: true, alerts: true, battery: 94, lastSeen: now, ack: false },
+      'leak-basin': { power: 'battery', id: 'leak-basin', kind: 'leak', name: 'Leak sensor', spot: 'Bathroom basin plumbing', room: 'bath', wet: false, online: true, alerts: true, battery: 91, lastSeen: now, ack: false },
+      'leak-laundry': { power: 'wired', id: 'leak-laundry', kind: 'leak', name: 'Leak sensor', spot: 'Laundry, behind washer', room: 'laundry', wet: false, online: true, alerts: true, battery: 88, lastSeen: now, ack: false },
+      'crack-w3': { power: 'battery', id: 'crack-w3', kind: 'crack', name: 'Crack monitor', spot: 'Side wall, window W3', room: 'living', installed: false, online: true, alerts: true, limit: null, base: 0, readings: [], over: false, woId: null, lastSeen: now },
+      hub: { power: 'wired', id: 'hub', kind: 'hub', name: 'SIAGA hub', spot: 'Hall, next to the DB box', room: 'hall', online: true, lastSeen: now },
     },
     sim: { crackMm: 0 },
     events: [
@@ -181,5 +183,19 @@ export function seedState(now = Date.now()) {
     nextWo: 1050,
     nextIns: 215,
     lastTick: 0,
+  };
+}
+
+// Guided live demo: the same home on the day of its pre-handover inspection.
+// No handover record yet, no crack monitor, and only the other homes' sample jobs.
+export function preHandoverState(now = Date.now()) {
+  const s = seedState(now);
+  return {
+    ...s,
+    handover: null,
+    inspections: s.inspections.filter((i) => i.home !== DEMO_HOME),
+    workOrders: s.workOrders.filter((w) => w.home !== DEMO_HOME),
+    notifications: [],
+    events: [],
   };
 }
